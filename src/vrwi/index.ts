@@ -9,22 +9,39 @@ import {
   CircuitString,
   PublicKey,
 } from 'snarkyjs';
+import { CID } from 'multiformats';
 
 const buf = Buffer.from('hello');
 
-const createDynamicStruct = (buf: Buffer) => {
-  const structLen = buf.byteLength;
-  Field.fromBytes(buf.toJSON().data);
-  //   const struct = Struct();
-  //   return struct;
-};
 /**
  * # Verifiable Reading/Writing Interface (VRWI)
  */
 export const VRWI = Experimental.ZkProgram({
-  publicInput: Field,
+  publicInput: Struct({
+    documentHash: Field,
+  }),
   methods: {
+    init: {
+      privateInputs: [Field],
+      method(state) {},
+    },
+    finish: {
+      privateInputs: [],
+      method() {},
+    },
+    readUnchecked: {
+      privateInputs: [],
+      method() {},
+    },
     read: {
+      privateInputs: [],
+      method() {},
+    },
+    writeUnchecked: {
+      privateInputs: [],
+      method() {},
+    },
+    write: {
       privateInputs: [],
       method() {},
     },
