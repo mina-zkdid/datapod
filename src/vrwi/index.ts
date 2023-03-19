@@ -10,18 +10,37 @@ import {
   PublicKey,
 } from 'snarkyjs';
 import { CID } from 'multiformats';
-
+// import {IPFS} from 'ipfs-core-types';
+import * as IPFS from 'ipfs-core';
+import { concat } from 'uint8arrays';
 const buf = Buffer.from('hello');
 
+let ipfs: IPFS.IPFS;
+
+async function setupIPFSInstance() {
+  if (!ipfs) {
+    ipfs = await IPFS.create();
+  }
+}
+
+export async function readFromIPFS(location: string) {
+  await setupIPFSInstance();
+
+  const doc = ipfs.files.read(location);
+  let chunks = [];
+  for await (const chunk of doc) {
+    chunks.push(chunk);
+  }
+  return concat(chunks);
+}
 /**
  * # Verifiable Reading/Writing Interface (VRWI)
  */
 export const VRWI = Experimental.ZkProgram({
-  publicInput: Struct({
-    documentHash: Field,
-  }),
+  publicInput: Field,
+
   methods: {
-    init: {
+    from: {
       privateInputs: [Field],
       method(state) {},
     },
@@ -29,21 +48,27 @@ export const VRWI = Experimental.ZkProgram({
       privateInputs: [],
       method() {},
     },
-    readUnchecked: {
-      privateInputs: [],
-      method() {},
+
+    /**
+     * Verify document
+     */
+    verify: {
+      privateInputs: [Field],
+      method(state, fetchedDocumentHash) {
+        state.assertEquals(fetchedDocumentHash);
+      },
     },
-    read: {
-      privateInputs: [],
-      method() {},
-    },
+
     writeUnchecked: {
       privateInputs: [],
       method() {},
     },
     write: {
-      privateInputs: [],
-      method() {},
+      privateInputs: [Field, Field],
+      method(state, oldHash, newHash) {
+        state.assertEquals(oldHash);
+        return newHash;
+      },
     },
   },
 });
