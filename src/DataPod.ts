@@ -10,6 +10,7 @@ import {
   MerkleMap,
   MerkleMapWitness,
   MerkleTree,
+  MerkleWitness,
   method,
   Permissions,
   Poseidon,
@@ -21,21 +22,28 @@ import {
 import { VRWI } from './vrwi';
 import { writeFileSync, readFileSync, openSync } from 'fs';
 import { OffChainStorage } from 'experimental-zkapp-offchain-storage';
+import { MerkleWitness4 } from './helper/merkle';
 
-function convertMerkleTreeToMap(tree: MerkleTree): Record<string, string> {
-  let map: Record<string, string> = {};
+const height = 4;
+/**
+ * Presist Merkle Tree to disk
+ */
+type PresistTree = Map<bigint, string>;
+
+function convertMerkleTreeToMap(tree: MerkleTree): PresistTree {
+  let map = new Map<bigint, string>();
 
   for (let i = 0n; i < tree.leafCount; i++) {
-    const value = tree.getNode(0, i).toString();
-    map[i.toString()] = value;
+    const value = tree.getNode(0, i).toJSON();
+    map.set(i, value);
   }
   return map;
 }
 
-function toMerkleTree(map: Record<string, string>): MerkleTree {
-  const tree = new MerkleTree(32);
-  for (const i of Object.keys(map)) {
-    tree.setLeaf(BigInt(i), Field(map[i]));
+function toMerkleTree(map: PresistTree): MerkleTree {
+  const tree = new MerkleTree(height);
+  for (const i of map.keys()) {
+    tree.setLeaf(BigInt(i), Field(map.get(BigInt(i))!));
   }
   return tree;
 }
@@ -44,15 +52,16 @@ class Storage {
     writeFileSync('test_storage.txt', '');
   }
   public write(mkt: MerkleTree) {
-    writeFileSync(
-      'test_storage.txt',
-      JSON.stringify(convertMerkleTreeToMap(mkt))
-    );
+    const f = convertMerkleTreeToMap(mkt);
+    console.log(f);
+    writeFileSync('test_storage.txt', JSON.stringify(f));
   }
   public read() {
     const file = readFileSync('test_storage.txt');
-    if (file.byteLength) {
-      return new MerkleTree(32);
+    console.log(file.byteLength);
+    if (!file.byteLength) {
+      console.log('create new merkle tree');
+      return new MerkleTree(height);
     }
     return toMerkleTree(JSON.parse(file.toString()));
   }
@@ -77,15 +86,18 @@ export class DataPod extends SmartContract {
     super.init();
     new Storage().init();
   }
-  @method async createSpace(name: Field, location: Field) {
-    this.owner.assertEquals(this.sender);
+  @method async createSpace(
+    leafWitness: MerkleWitness4,
+    name: Field,
+    location: Field
+  ) {
+    // this.owner.assertEquals(this.sender);
     const currentRoot = this.data.get();
     this.data.assertEquals(currentRoot);
 
     const storage = new Storage();
     const doc = storage.read();
-    doc.setLeaf(new MerkleMap()._keyToIndex(name), location);
-
+    doc.setLeaf(name.toBigInt(), location);
     storage.write(doc);
 
     Circuit.log('successfully create space');

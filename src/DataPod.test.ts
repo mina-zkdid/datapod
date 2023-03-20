@@ -7,7 +7,9 @@ import {
   PrivateKey,
   PublicKey,
   AccountUpdate,
+  MerkleTree,
 } from 'snarkyjs';
+import { MerkleWitness4 } from './helper/merkle';
 
 /*
  * This file specifies how to test the `Add` example smart contract. It is safe to delete this file and replace
@@ -30,6 +32,7 @@ describe('DataPod Contract Testing', () => {
   beforeAll(async () => {
     await isReady;
     if (proofsEnabled) DataPod.compile();
+    console.log('DataPod Already');
   });
 
   beforeEach(() => {
@@ -67,17 +70,19 @@ describe('DataPod Contract Testing', () => {
     // expect(num).toEqual(Field(1));
   });
 
-  it('correctly createSpace()', async () => {
+  it('calling createSpace()', async () => {
     await localDeploy();
 
+    const emp = new MerkleTree(4);
+    const w = emp.getWitness(0n);
     // update transaction
     const txn = await Mina.transaction(senderAccount, () => {
-      zkApp.createSpace(Field(0), Field('test'));
+      zkApp.createSpace(new MerkleWitness4(w), Field(0), Field('000023'));
     });
     await txn.prove();
     await txn.sign([senderKey]).send();
-
+    expect(zkApp.data).toEqual(Field(0));
     // const updatedNum = zkApp..get();
     // expect(updatedNum).toEqual(Field(3));
-  });
+  }, 60);
 });
