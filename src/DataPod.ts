@@ -98,6 +98,7 @@ export class DataPod extends SmartContract {
     const storage = new Storage();
     const doc = storage.read();
     doc.setLeaf(name.toBigInt(), location);
+
     storage.write(doc);
 
     Circuit.log('successfully create space');
